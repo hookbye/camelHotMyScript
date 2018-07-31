@@ -1,0 +1,23 @@
+require"Global"
+
+local class = class()
+
+function class:Start( )
+	self.panel = self.transform:GetComponent(UIPanel)
+	-- self.panel.size = Vector2(300,1000)
+	self.cpanel = self.container.transform:GetComponent(UIPanel)
+	print(" panel?" .. (self.cpanel and self.cpanel.baseClipRegion.x or "no object cpanel"))
+	self.cpanel.baseClipRegion = Vector4(0,0,300,1000)
+	self.boxCollider = self.container.transform:GetComponent(BoxCollider)
+	self.boxCollider.size = Vector2(300,1000)
+end
+
+function class:Update( )
+	-- print ("ddddd----" .. self.panel.clipOffset.y)
+end
+
+function class:OnScroll( )
+	print "OnScroll----"
+end
+
+return class
