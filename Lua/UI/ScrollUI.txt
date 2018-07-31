@@ -29,13 +29,13 @@ function class:initGrids( cell,cellData,cellIdx )
 end
 
 function class:initTable( cellNum, data)
-	self.table.transform.localPosition = Vector3(-130,0,0)
+	self.table.transform.localPosition = Vector3(-145,0,0)
 	for i=1,cellNum do
 		local cell = self:createCell()
 		if cell then
 			self:initCell(cell,nil,i)
 			cell.transform.parent = self.table.transform
-			cell.transform.localPosition = Vector3(-130,-i,0)
+			cell.transform.localPosition = Vector3(-150,-i,0)
 			cell.transform.localScale = Vector3.one
 		end
 	end
@@ -48,7 +48,7 @@ end
 
 function class:createGrid( )
 	-- local go = Lua.CreateGoFromRes2("myGrid.prefab", Vector3.zero, Quaternion.identity)
-	local frame = FindChildInTransform("frame", self.transform).gameObject
+	local frame = FindChildInTransform("Frame", self.transform).gameObject
 	local go  = CreateUIGo(frame)
 	local panel = GetLuaTable(go)
 	self:addGridClickFunc(panel)
@@ -83,7 +83,7 @@ function class:OnGridClick()
 end
 
 function class:createCell( )
-	local frame = FindChildInTransform("cell", self.transform).gameObject
+	local frame = FindChildInTransform("Cell", self.transform).gameObject
 	local go  = CreateUIGo(frame)
 	local cell = GetLuaTable(go)
 	-- self:addGridClickFunc(cell)
