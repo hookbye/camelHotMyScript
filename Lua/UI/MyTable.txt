@@ -1,0 +1,11 @@
+require "Global"
+require "ViewManager" 
+
+local class = class()
+function class:Start()
+	
+end
+function class:testClick( )
+	print "grids func....@@@@@@@@@@@@"
+end
+return class

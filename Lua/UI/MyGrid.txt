@@ -1,0 +1,56 @@
+require "Global"
+
+local class = class()
+
+function class:Start()
+	local parent = self.transform.parent 
+	self.grandpa = parent.transform.parent
+	self.greate_grandpa = self.grandpa.transform.parent
+	self.scrollUI = GetLuaTable(self.greate_grandpa.gameObject)
+	self.table = self.grandpa:GetComponent(UITable)
+end
+
+function class:Update()
+	
+end
+
+function class:OnPush(metaData)
+	self.metaData = metaData
+end
+
+function class:OnGridClick(  )
+	local isMyDetail = self.detailCell ~= nil
+	self.scrollUI:closeDetail()
+	if isMyDetail then
+		print (" gird " .. self.num.text .. "close detail######")
+		return
+	end
+	print (" gird " .. self.num.text .. " open detail@@@@@@@")
+	self:addDetail()
+	self:OnParentFunc()
+end
+
+function class:addDetail( )
+	local go  = CreateUIGo(self.transform.parent.gameObject)
+	local detailCell = GetLuaTable(go)
+	detailCell.transform:DestroyChildren()
+	detailCell.transform.parent = self.transform
+	detailCell.transform.localScale = Vector3.one
+	detailCell.transform.localPosition = Vector3(-self.transform.localPosition.x,-50,0)
+	self.detailCell = detailCell
+	self.detailCell.grid = self
+end
+
+function class:OnParentFunc( )
+	if self.scrollUI then
+		self.scrollUI:doShowDetail(self.detailCell)
+	else
+		print "no parent lua"
+	end
+end
+
+function class:setNum( num )
+	self.num.text = num
+end
+
+return class

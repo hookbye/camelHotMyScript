@@ -1,0 +1,46 @@
+require "Global"
+require "ViewManager"
+
+local class = class()
+
+function class:Start()
+	self.data = 0;
+
+	self.button1 = FindChildInTransform("Button1", self.transform).gameObject
+	
+	UIEventListener.Get(self.button1).onClick = function ()
+		self:OnClick()
+	end
+
+	self.button = FindChildInTransform("Button", self.transform).gameObject
+	
+	UIEventListener.Get(self.button).onClick = function ()
+		self:OnClick1()
+	end
+end
+
+function class:Update()
+	
+end
+
+function class:OnClick()
+	ViewManager:PushPanel("Panel_2.prefab")
+	
+	self.data = self.data + 1
+	if self.data > 9 then 
+		self.data = 1;
+	end
+	UpdateUISprite(self.data, self.sprite)
+end 
+
+function class:OnClick1()
+	-- ViewManager:PushPanel("Panel_1.prefab")
+	
+	self.data = self.data - 1
+	if self.data < 1 then 
+		self.data = 1;
+	end
+	UpdateUISprite(self.data, self.sprite)
+end 
+
+return class

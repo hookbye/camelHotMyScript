@@ -1,0 +1,40 @@
+local _print = print
+
+function log(a)
+    if not RELEASE then
+        _print(a)
+    end
+end
+
+-- Relocate print to log
+print = log
+
+function logRed(a)
+    if not RELEASE then
+        _print("<color=red>" .. a .. "</color>")
+    end
+end
+
+function logYellow(a)
+    if not RELEASE then
+        _print("<color=yellow>" .. a .. "</color>")
+    end
+end
+
+function logBlue(a)
+    if not RELEASE then
+        _print("<color=blue>" .. a .. "</color>")
+    end
+end
+
+function logGreen(a)
+    if not RELEASE then
+        _print("<color=green>" .. a .. "</color>")
+    end
+end
+
+function logCyan(a)
+    if not RELEASE then
+        _print("<color=cyan>" .. a .. "</color>")
+    end
+end

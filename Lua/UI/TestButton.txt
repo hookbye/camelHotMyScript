@@ -1,0 +1,7 @@
+local class = class()
+
+function class:Start()
+	
+end
+
+return class

@@ -1,0 +1,237 @@
+import "UnityEngine"
+require "Utils/dkjson"
+require "Utils/Class"
+require "Utils/Logger"
+
+local function print_table_(lua_table, indent, strs)
+    for k, v in pairs(lua_table) do
+        if v == lua_table then
+            table.insert(strs, "------------------ break circle reference. " .. k .. '\n')
+        else
+            local typeK = type(k)
+            if typeK == "string" then
+                k = string.format("%q", k)
+            elseif typeK == 'function' then
+                k = tostring(k)
+            end
+            local szSuffix = ""
+            isTable = type(v) == "table" --and k ~= "__index" -- __index should not considered as table. Otherwise the stack will overflow
+            if isTable  then
+                szSuffix = "{"
+            end
+            local szPrefix = string.rep("    ", indent)
+            local formatting = szPrefix.."["..k.."]".." = "..szSuffix
+            if isTable then
+                table.insert(strs, formatting .. '\n')
+                print_table_(v, indent + 1, strs)
+                table.insert(strs, szPrefix.."},\n")
+            else
+                local szValue = ""
+                if type(v) == "string" then
+                    szValue = string.format("%q", v)
+                else
+                    szValue = tostring(v)
+                end
+                table.insert(strs, formatting..szValue..",\n")
+            end
+        end
+    end
+
+    if #strs > 1000 then
+        print(table.concat(strs))
+
+        for k in pairs (strs) do
+            strs[k] = nil
+        end
+    end
+end
+
+function print_table (lua_table, indent)
+    if not RELEASE then
+       indent = indent or 0
+       local strs = {}
+       print_table_(lua_table, indent, strs)
+       print(table.concat(strs))
+    end
+end
+
+function print_array(array)
+	local strs = {}
+	table.insert(strs, '{')
+	for _, value in ipairs(array) do
+		table.insert(strs, value)
+		table.insert(strs, ', ')
+	end
+	table.insert(strs, '}')
+	print(table.concat(strs))
+end
+
+function printStack()
+    if not RELEASE then
+       print(debug.traceback())
+    end
+end
+	
+function CreateUIGo(prefab)
+    local go = GameObject.Instantiate(prefab)
+    NGUITools.SetActive(go, true)
+    return go
+end
+
+function AddToParentTrans(trans, parentTrans, notReset)
+    trans.parent = parentTrans
+    trans.localScale = Vector3(1, 1, 1)
+	if not notReset then
+		trans.localPosition = Vector3(0, 0, 0)
+	end
+end
+
+function AddToParent(go, parent)
+    AddToParentTrans(go.transform, parent.transform)
+end
+
+
+function CreateLuaTable(lua, asset)
+    local go
+    if asset then
+        go = Lua.CreateGoFromRes(asset)
+    else
+        go = GameObject()
+    end
+
+    return Lua.AttachLua(lua, go)
+end
+
+function GetLuaTable(go)
+    return Lua.GetLua(go)
+end
+
+
+string.split = function(String, p)
+    local rt= {}
+    string.gsub(String, '[^'..p..']+', function(w) table.insert(rt, w) end )
+    return rt
+end
+
+string.starts = function(String, Start)
+    return string.sub(String,1,string.len(Start))==Start
+end
+
+string.ends = function(String, End)
+   return End=='' or string.sub(String,-string.len(End))==End
+end
+
+table.reverse = function(t)
+    local t2 = {}
+    local count = #t
+    for i = 1, count do
+        t2[count - i + 1] = t[i]
+    end
+
+    return t2
+end
+
+--list table
+table.indexOf = function (list, value)
+    for i =1 ,#list do
+        if list[i] == value then
+            return i
+        end
+    end
+    return -1
+end
+
+table.removeAll = function (list)
+	while #list > 0 do
+		table.remove(list, 1)
+	end
+end
+
+table.removeItem = function (list, value)
+    local index = table.indexOf(list, value)
+    if index ~= -1 then
+        return table.remove(list, index)
+    end
+end
+
+table.popBack = function(list)
+    return table.remove(list, #list)
+end
+
+table.addFront = function(list, value)
+    return table.insert(list, 1, value)
+end
+
+function UpdateUISprite(name, uiSprite)
+	local index = string.find(name, '%.')
+	if index then
+		name = string.sub(name, 1, index - 1)
+	end
+	
+    Lua.SetUISprite(uiSprite, name)
+
+    --uibutton will reset the sprite to normal
+    local button = uiSprite:GetComponent(UIButton)
+    if button then
+        button.normalSprite = name
+    end
+end
+
+
+function FindChildInTransform(name, transform)
+	local result = transform:FindChild(name)
+    print(name)
+    if result then 
+	    return result
+	else 
+		for i = 0, transform.childCount - 1 do 
+			local t = transform:GetChild(i)
+			local result = FindChildInTransform(name, t)
+			if result then 
+	            return result
+		    end
+		end
+	end
+end 
+local function print_table_(lua_table, indent, strs)
+    for k, v in pairs(lua_table) do
+        if v == lua_table then
+            table.insert(strs, "------------------ break circle reference. " .. k .. '\n')
+        else
+            local typeK = type(k)
+            if typeK == "string" then
+                k = string.format("%q", k)
+            elseif typeK == 'function' then
+                k = tostring(k)
+            end
+            local szSuffix = ""
+            isTable = type(v) == "table" --and k ~= "__index" -- __index should not considered as table. Otherwise the stack will overflow
+            if isTable  then
+                szSuffix = "{"
+            end
+            local szPrefix = string.rep("    ", indent)
+            local formatting = szPrefix.."["..k.."]".." = "..szSuffix
+            if isTable then
+                table.insert(strs, formatting .. '\n')
+                print_table_(v, indent + 1, strs)
+                table.insert(strs, szPrefix.."},\n")
+            else
+                local szValue = ""
+                if type(v) == "string" then
+                    szValue = string.format("%q", v)
+                else
+                    szValue = tostring(v)
+                end
+                table.insert(strs, formatting..szValue..",\n")
+            end
+        end
+    end
+
+    if #strs > 1000 then
+        print(table.concat(strs))
+
+        for k in pairs (strs) do
+            strs[k] = nil
+        end
+    end
+end

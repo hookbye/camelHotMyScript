@@ -1,0 +1,12 @@
+local class = class()
+
+function class:Start()
+	-- self.sprite = self.gameobject:GetComponent(UISprite)
+	-- self.sprite.name = "0_2_attack_10000"
+end
+
+function class:FixedUpdate()
+	
+end
+
+return class

@@ -1,0 +1,27 @@
+require "Global"
+
+ViewManager = {}
+
+function ViewManager:PushPanel(res, userData, luaPath)
+    local go = Lua.CreateGoFromRes2(res, Vector3.zero, Quaternion.identity)
+    local panel
+    if luaPath then
+        panel = Lua.SetLua(luaPath, go)
+    else
+        panel = GetLuaTable(go)
+    end
+
+    if panel then
+		print("111")
+		panel.prefabName = res
+		--TODO 
+        return panel
+    else
+        Object.Destroy(go)
+    end
+end
+
+function ViewManager:PopPanel(panel)
+	NGUITools.Destroy(panel)
+end
+

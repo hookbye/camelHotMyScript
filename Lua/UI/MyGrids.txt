@@ -1,0 +1,30 @@
+require "Global"
+require "ViewManager" 
+
+local class = class()
+function class:Start()
+	-- self:initGrids()
+end
+
+function class:initGrids( )
+	for i=1,10 do
+		local grid = self:createGrid()
+		print_table(grid.transform.localScale)
+		-- grid.transform.localScale()
+		self.grid:AddChild(grid.transform)
+		grid.transform.localScale = Vector3.one
+	end
+	self.grid.Reposition()
+end
+
+function class:createGrid( )
+	local go = Lua.CreateGoFromRes("stone.prefab", Vector3.zero, Quaternion.identity)
+	local panel = GetLuaTable(go)
+	return panel
+end
+
+function class:testClick( )
+	print "grids func....@@@@@@@@@@@@"
+end
+
+return class

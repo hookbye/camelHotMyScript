@@ -1,0 +1,20 @@
+require "Global"
+require "ViewManager" 
+
+require "Global"
+
+local class = class()
+
+function class:Start()
+	
+end
+
+function class:Update()
+	
+end
+
+function class:OnPush(metaData)
+	self.metaData = metaData
+end
+
+return class
