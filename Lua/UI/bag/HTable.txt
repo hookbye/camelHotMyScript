@@ -60,7 +60,7 @@ function class:Start( )
 	-- 	end,
 	-- }
 	
-	self:initTable()
+	self:initTable(50,Vector2(300,50))
 	self:SetTopWhenInitDone()
 end
 local codeIndx=0
@@ -71,13 +71,32 @@ function class:DoSmt( )
 	self:fillTable()
 	-- self:SetBottomWhenInitDone()
 	print("self.offset..." .. self.offset.y)
+	local topIndex,bottomIndex = self:getIndexOfOffset()
+	print("============ from: " .. bottomIndex .. " to: " .. topIndex .. "==========")
 	print("self.cells num:" .. #self.cells)
+	print("self.exPools num:" .. #self.exPools)
+	local count = 0
+	for i,cell in pairs(self.visibleCells) do
+		count = count+1
+		-- print("visible cellindex" .. cell.index)
+	end
+	print("self.visibleCells num:" .. count)
+	print("=================================")
+	local cellIndexs = {}
+	for i,cell in ipairs(self.cells) do
+		if cellIndexs[cell.index] then
+			cellIndexs[cell.index] = cellIndexs[cell.index] + 1
+			print ("index " .. cell.index .. " is " .. cellIndexs[cell.index] .. "times" )
+		else
+			cellIndexs[cell.index] = 1
+		end
+	end
 end
 
 -- 设置初始化参数
-function class:initTable( )
-	self:SetTableCellSize(Vector2(300,50))
-	self:SetTableCellNum(20)
+function class:initTable( cellNum,size)
+	self:SetTableCellSize(size)
+	self:SetTableCellNum(cellNum)
 	self:autoSetting()
 	
 end
@@ -116,9 +135,8 @@ function class:fillTable()
 		local cell = self.cells[i]
 		if cell.index > topIndex or cell.index < bottomIndex then
 			self:pushInExPool(cell)
-			table.remove(self.cells,i)
 			self.visibleCells["" .. cell.index] = nil
-			print("remove cell " .. cell.index)
+			-- print("remove cell " .. cell.index)
 		end
 	end
 	for i=bottomIndex,topIndex do
@@ -129,12 +147,12 @@ end
 function class:fillCell( index )
 	if self.visibleCells["" .. index] then return end
 	local cell = self:findCellInExPool()
+	cell.index = index
 	self.visibleCells["" .. index] = cell
 	cell.transform.parent = self.container.transform
 	local cellPosY = (index-self.cellNum*0.5-0.5)*self.cellHeigth
 	cell.transform.localPosition = Vector3(0,cellPosY,0)
 	cell.transform.localScale = Vector3.one
-	cell.index = index
 	-- cell.transform.localRotation = Vector3(0,0,0)
 end
 
