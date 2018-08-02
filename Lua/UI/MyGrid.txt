@@ -39,6 +39,8 @@ function class:addDetail( )
 	detailCell.transform.localPosition = Vector3(-self.transform.localPosition.x,-50,0)
 	self.detailCell = detailCell
 	self.detailCell.grid = self
+	self.cell.detailCell = detailCell
+	self.cell.detailGrid = grid
 end
 
 function class:OnParentFunc( )

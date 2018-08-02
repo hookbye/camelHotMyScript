@@ -1,19 +1,240 @@
 require"Global"
+-- import "UnityEngine"
 
 local class = class()
 
+function class:ChangeScene( )
+	ResManager.Instance:LoadScene("ScrollUI",nil)
+end
+
 function class:Start( )
 	self.panel = self.transform:GetComponent(UIPanel)
-	-- self.panel.size = Vector2(300,1000)
+	-- self.panel.baseClipRegion = Vector4(0,0,300,1000)
+
+	-- self.scrollView = self.transform:GetComponent(UIScrollView)
+	-- self.scrollView.panel.baseClipRegion = Vector4(0,0,300,1000)
+	-- Object.Destroy(self.panel)
 	self.cpanel = self.container.transform:GetComponent(UIPanel)
-	print(" panel?" .. (self.cpanel and self.cpanel.baseClipRegion.x or "no object cpanel"))
-	self.cpanel.baseClipRegion = Vector4(0,0,300,1000)
+	-- print(" panel?" .. (self.cpanel and self.cpanel.baseClipRegion.x or "no object cpanel"))
 	self.boxCollider = self.container.transform:GetComponent(BoxCollider)
-	self.boxCollider.size = Vector2(300,1000)
+	-- self.container.transform.localPosition = Vector3(0,314,0)
+	-- self.container.transform.y = 1000 --Vector3(0,200,0)
+
+	-- frenquency for short
+	self.containerTrans = self.container.transform
+	-- 设置container初始位置
+	self.containerPos = self.containerTrans.localPosition
+	-- 设置container 区域
+	self.containerRegion = self.cpanel.baseClipRegion
+	-- 设置container 点击区域
+	self.containerBoxSize = self.boxCollider.size
+	-- 可视区域大小
+	self.visibleRect = self.panel.baseClipRegion
+	-- container偏移量
+	self.offset = {x=0,y=0}
+	-- container底部偏移量
+	self.bottomOffset = Vector2(0,0)
+	-- cell 个数
+	self.cellNum = 0
+	-- cells 对象池
+	self.cells = {}
+	self.visibleCells = {}
+	self.exPools = {}
+
+	self.cellWidth = 100
+	self.cellHeigth= 50
+
+	-- 对外接口
+	-- self.eventMap = {
+	-- 	-- 设置偏移
+	-- 	function setTableOffset( offset )
+	-- 		self:SetTableOffset(offset)
+	-- 	end,
+	-- 	-- 设置Container size
+	-- 	function setTableContainerSize( size )
+	-- 		self:SetTableContainerSize(size)
+	-- 	end,
+	-- 	-- 设置偏移
+	-- 	function setTableCellNum( cellNum )
+	-- 		self:SetTableCellNum(cellNum)
+	-- 	end,
+	-- }
+	
+	self:initTable()
+	self:SetTopWhenInitDone()
+end
+local codeIndx=0
+function class:DoSmt( )
+	print "do something!"
+	codeIndx=codeIndx+1
+	print ("new code:" .. codeIndx .. os.date())
+	self:fillTable()
+	-- self:SetBottomWhenInitDone()
+	print("self.offset..." .. self.offset.y)
+	print("self.cells num:" .. #self.cells)
+end
+
+-- 设置初始化参数
+function class:initTable( )
+	self:SetTableCellSize(Vector2(300,50))
+	self:SetTableCellNum(20)
+	self:autoSetting()
+	
+end
+
+-- 生成cell gameObject
+function class:createCell( )
+	local frame = FindChildInTransform("Cell", self.transform).gameObject
+	local go  = CreateUIGo(frame)
+	NGUITools.SetActive(go, true)
+	local cell = GetLuaTable(go)
+	return cell
+end
+
+function class:findCellInExPool( )
+	local cell = self.exPools[#self.exPools]
+	if not cell then
+		cell = self:createCell()
+		self.cells[#self.cells+1] = cell
+	else
+		self.exPools[#self.exPools] = nil
+	end
+	return cell
+end
+
+function class:pushInExPool(cell)
+	self.exPools[#self.exPools] = cell
+end
+
+--[[
+填充表格 拿到当前应该显示的列表索引 比如 0~9 依次填充对象，如果没有则创建
+--]]
+function class:fillTable()
+	local topIndex,bottomIndex = self:getIndexOfOffset()
+	if topIndex > self.cellNum or bottomIndex < 0 then return end
+	for i=#self.cells,1,-1 do
+		local cell = self.cells[i]
+		if cell.index > topIndex or cell.index < bottomIndex then
+			self:pushInExPool(cell)
+			table.remove(self.cells,i)
+			self.visibleCells["" .. cell.index] = nil
+			print("remove cell " .. cell.index)
+		end
+	end
+	for i=bottomIndex,topIndex do
+		self:fillCell(i)
+	end
+end
+
+function class:fillCell( index )
+	if self.visibleCells["" .. index] then return end
+	local cell = self:findCellInExPool()
+	self.visibleCells["" .. index] = cell
+	cell.transform.parent = self.container.transform
+	local cellPosY = (index-self.cellNum*0.5-0.5)*self.cellHeigth
+	cell.transform.localPosition = Vector3(0,cellPosY,0)
+	cell.transform.localScale = Vector3.one
+	cell.index = index
+	-- cell.transform.localRotation = Vector3(0,0,0)
+end
+
+function class:insertCell( )
+	
+end
+
+
+
+function class:SetTableDelegate( eventType,func )
+	-- body
+end
+
+function class:SetTableOffset( offset )
+	self.panel.transform.localPosition = Vector3(0,offset,0)
+	self.panel.clipOffset = Vector3(0,-offset,0)
+end
+
+function class:autoSetting( )
+	self:autoResizeContainer()
+end
+
+function class:autoResizeContainer( )
+	local height = math.max(self.visibleRect.w,self.cellHeigth*self.cellNum)
+	self:SetTableContainerSize(Vector2(self.cellWidth,height))
+end
+
+function class:SetTableContainerSize( size )
+	self.cpanel.baseClipRegion = Vector4(0,0,size.x,size.y)
+	self.boxCollider.size = Vector2(size.x,size.y)
+end
+
+-- 设置table cell个数
+function class:SetTableCellNum(cellNum)
+	self.cellNum = cellNum
+end
+
+-- 单个cell宽高
+function class:SetTableCellSize( size )
+	self.cellWidth = size.x
+	self.cellHeigth = size.y
+end
+
+-- 设置初始为最高位置
+function class:SetTopWhenInitDone( )
+	self:SetTableOffset(-self:_getBottomOffsetOfCenter())
+	-- self.container.transform.localPosition = Vector3(0,-self:_getBottomOffsetOfCenter(),0)
+end
+
+-- 设置初始为最低位置
+function class:SetBottomWhenInitDone( )
+	self:SetTableOffset(self:_getBottomOffsetOfCenter())
+	-- self.container.transform.localPosition = Vector3(0,self:_getBottomOffsetOfCenter(),0)
+end
+
+-- 获得底部相对中心点的偏移量
+function class:_getBottomOffsetOfCenter( )
+	local offset = 0
+	local visibleH = self.panel.baseClipRegion.w
+	local containerH = self.cpanel.baseClipRegion.w
+	print "begin offset========"
+	print ("size..." .. (containerH-visibleH)/2)
+	print "end   offset========"
+	print ("visibleH:" .. visibleH)
+	print ("containerH:" .. containerH)
+	self._correctOffsetY = math.max((containerH-visibleH)/2,0)
+	return math.max((containerH-visibleH)/2,0)
+end
+
+-- 通过算scrollView的offset 来矫正container的底部偏移
+function class:_getContainerBottomCorrectOffset( )
+	if not self.panel then return end
+	self.offset.y = self.panel.transform.localPosition.y-(self._correctOffsetY or self:_getBottomOffsetOfCenter())
+end
+
+-- 假定从上往下排
+function class:getIndexOfOffset( )
+	local topIndex,bottomIndex = 0,0
+	local visiblePos1 = -self.offset.y 
+	local visiblePos2 = -self.offset.y+self.panel.baseClipRegion.w
+	topIndex = self:convertPosToIndex(visiblePos2)
+	bottomIndex = self:convertPosToIndex(visiblePos1)
+	-- self.topIndex,self.bottomIndex = topIndex,bottomIndex
+	return topIndex,bottomIndex
+end
+
+function class:convertPosToIndex( pos )
+	local index = math.floor(pos/self.cellHeigth)
+	return index
+end
+
+function class:tableCellAtIndex( index )
+	
 end
 
 function class:Update( )
+	-- self.transform.localPosition.y = -300
 	-- print ("ddddd----" .. self.panel.clipOffset.y)
+	self:_getContainerBottomCorrectOffset()
+	self:fillTable()
 end
 
 function class:OnScroll( )
