@@ -8,7 +8,11 @@ def gitCmd(cmd):
 
 def gitPush():
 	gitCmd("git add -A")
-	gitCmd("git ci -m \"quick commit for save\"")
+	commitInfo = raw_input()
+	print type(commitInfo)
+	if commitInfo == "":
+		commitInfo = "quick commit for save"
+	gitCmd("git ci -m " + commitInfo)
 	gitCmd("git pl")
 	gitCmd("git ps")
 if __name__ == '__main__':

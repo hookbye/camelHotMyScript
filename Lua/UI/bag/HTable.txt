@@ -81,6 +81,7 @@ function class:DoSmt( )
 		-- print("visible cellindex" .. cell.index)
 	end
 	print("self.visibleCells num:" .. count)
+	print("self.newCellIndex is : " .. (self.newCellIndex or " none"))
 	print("=================================")
 	local cellIndexs = {}
 	for i,cell in ipairs(self.cells) do
@@ -91,6 +92,7 @@ function class:DoSmt( )
 			cellIndexs[cell.index] = 1
 		end
 	end
+	-- self:clear()
 end
 
 -- 设置初始化参数
@@ -116,51 +118,86 @@ function class:findCellInExPool( )
 		cell = self:createCell()
 		self.cells[#self.cells+1] = cell
 	else
-		self.exPools[#self.exPools] = nil
+		table.remove(self.exPools,#self.exPools)
 	end
+	NGUITools.SetActive(cell.gameObject, true)
 	return cell
 end
 
 function class:pushInExPool(cell)
 	self.exPools[#self.exPools] = cell
+	-- NGUITools.SetActive(cell.gameObject, false)
 end
 
 --[[
 填充表格 拿到当前应该显示的列表索引 比如 0~9 依次填充对象，如果没有则创建
 --]]
-function class:fillTable()
+function class:fillTable(refresh)
 	local topIndex,bottomIndex = self:getIndexOfOffset()
 	if topIndex > self.cellNum or bottomIndex < 0 then return end
+	self.visibleCells = {}
 	for i=#self.cells,1,-1 do
 		local cell = self.cells[i]
-		if cell.index > topIndex or cell.index < bottomIndex then
+		if cell.index > topIndex or cell.index < (bottomIndex) then
 			self:pushInExPool(cell)
+			-- NGUITools.SetActive(cell.gameObject, false)
 			self.visibleCells["" .. cell.index] = nil
+		else
+			self.visibleCells["" .. cell.index] = cell
 			-- print("remove cell " .. cell.index)
 		end
 	end
 	for i=bottomIndex,topIndex do
-		self:fillCell(i)
+		self:fillCell(i,refresh)
 	end
 end
 
-function class:fillCell( index )
-	if self.visibleCells["" .. index] then return end
-	local cell = self:findCellInExPool()
+function class:fillCell( index,refresh )
+	if self.visibleCells["" .. index] and not refresh then return end
+	local cell = refresh and self.visibleCells["" .. index] or self:findCellInExPool()
 	cell.index = index
 	self.visibleCells["" .. index] = cell
+	-- print ("fillCell .//////" .. index)
 	cell.transform.parent = self.container.transform
-	local cellPosY = (index-self.cellNum*0.5-0.5)*self.cellHeigth
+	local cellPosY = (index-self.cellNum*0.5+0.5)*self.cellHeigth
 	cell.transform.localPosition = Vector3(0,cellPosY,0)
 	cell.transform.localScale = Vector3.one
 	-- cell.transform.localRotation = Vector3(0,0,0)
+	local isDetailCell = self.newCellIndex and self.newCellIndex == index or nil
+	local isAbove = self.newCellIndex and self.newCellIndex <= index
+	cell.touchIndex = isAbove and index-1 or index
+	if cell.grids and #cell.grids > 0 then
+		for i,v in ipairs(cell.grids) do
+			NGUITools.SetActive(v.gameObject,not isDetailCell)
+			v:setNum(isAbove and index-1 or index)
+			v.cellIdx = isAbove and index-1 or index
+		end
+	else
+		self:initGrids(cell,{1,2,3,4,5},isAbove and index-1 or index)
+	end
 end
 
-function class:insertCell( )
+function class:insertCell( index )
+	self.cellNum = self.cellNum+1
+	self.newCellIndex = index
+	local num,width,height = self.cellNum,self.cellWidth,self.cellHeigth
+	-- self:clear()
+	self:initTable(num,Vector2(width,height))
+	self:fillTable(true)
+end
+
+function class:deleteCell( index )
+	self.cellNum = self.cellNum-1
+	self.newCellIndex = nil
+	local num,width,height = self.cellNum,self.cellWidth,self.cellHeigth
+	-- self:clear()
+	self:initTable(num,Vector2(width,height))
+	self:fillTable(true)
+end
+
+function class:forceReflash( )
 	
 end
-
-
 
 function class:SetTableDelegate( eventType,func )
 	-- body
@@ -255,8 +292,93 @@ function class:Update( )
 	self:fillTable()
 end
 
+-- 清除
+function class:clear( )
+	self.cellNum = 0
+	self.cellWidth = 0
+	self.cellHeigth = 0
+	for i,v in ipairs(self.cells) do
+		Object.Destroy(v.gameObject)
+	end
+	self.cells = {}
+	self.exPools = {}
+	self.visibleCells = {}
+	self:autoSetting()
+end
+
+-- 重置刷新 不删除节点和重新创建
+function class:reflash( )
+	-- body
+end
+
 function class:OnScroll( )
 	print "OnScroll----"
+end
+
+-- 额外test gird...
+function class:createGrid( )
+	-- local go = Lua.CreateGoFromRes2("myGrid.prefab", Vector3.zero, Quaternion.identity)
+	local frame = FindChildInTransform("Frame", self.transform).gameObject
+	local go  = CreateUIGo(frame)
+	local panel = GetLuaTable(go)
+	self:addGridClickFunc(panel)
+	return panel
+end
+
+function class:initGrids( cell,cellData,cellIdx )
+	cell.grids = {}
+	for i=1,#cellData do
+		local grid = self:createGrid()
+		if grid then
+			grid.transform.parent = cell.transform
+			grid.transform.localScale = Vector3.one
+			grid.transform.localPosition = Vector3(i*50-150,0,0)
+			print("create cellGrid:=============" .. i)
+			grid.cellIdx = cellIdx
+			grid.cell = cell
+			grid:setNum(cellIdx) --(cellIdx-1)*5+i)
+			table.insert(cell.grids,grid)
+		end
+	end
+end
+
+-- func
+function class:addGridClickFunc(  )
+	
+end
+
+function class:closeDetail( noReposition )
+	if not self.detailCell then return end
+	if not onlyDelete then
+		self:deleteCell(self.detailCell.grid.cellIdx)
+	end
+	self.detailCell.grid.detailCell = nil
+	Object.Destroy(self.detailCell.gameObject)
+	self.detailCell = nil
+	-- if not noReposition then self:tableReposition() end
+end
+
+function class:doShowDetail( detailCell,grid )
+	if not detailCell then return print "no detailCell" end
+	local isAbove = self.newCellIndex and self.newCellIndex <= grid.cellIdx
+	-- print (" ...new ----:" .. (self.newCellIndex or "none.."))
+	-- print("isAbove?" .. (isAbove and "true" or " no!"))
+	-- print ("self.detailCellIdx...grid.cellIdx..." .. (self.detailCellIdx or "none") .. "  :" .. grid.cellIdx )
+	if self.detailCellIdx and self.detailCellIdx == grid.cellIdx then 
+		self:closeDetail()
+		self.detailCellIdx = nil
+		return
+	end
+	if self.detailCell then
+		self:closeDetail(true)
+	end
+	self.detailCell = detailCell--self:insertCell(cellIdx)--
+	self.detailCellIdx = grid.cellIdx
+	-- print("cellIndex-------" .. (grid and grid.cellIdx or "null") .. " ::::: " .. tonumber(grid.num.text))
+	self:insertCell(grid.cellIdx)
+	-- print("cellIndex-------" .. (grid and grid.cellIdx or "null") .. " ##### " .. tonumber(grid.num.text))
+	-- NGUITools.SetActive(detailCell.gameObject,false)
+	-- self:tableReposition()
 end
 
 return class
