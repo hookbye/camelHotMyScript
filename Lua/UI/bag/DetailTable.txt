@@ -1,0 +1,384 @@
+require"Global"
+-- import "UnityEngine"
+
+local class = class()
+
+function class:ChangeScene( )
+	ResManager.Instance:LoadScene("ScrollUI",nil)
+end
+
+function class:Start( )
+	self.panel = self.transform:GetComponent(UIPanel)
+	-- self.panel.baseClipRegion = Vector4(0,0,300,1000)
+
+	-- self.scrollView = self.transform:GetComponent(UIScrollView)
+	-- self.scrollView.panel.baseClipRegion = Vector4(0,0,300,1000)
+	-- Object.Destroy(self.panel)
+	self.cpanel = self.container.transform:GetComponent(UIPanel)
+	-- print(" panel?" .. (self.cpanel and self.cpanel.baseClipRegion.x or "no object cpanel"))
+	self.boxCollider = self.container.transform:GetComponent(BoxCollider)
+	-- self.container.transform.localPosition = Vector3(0,314,0)
+	-- self.container.transform.y = 1000 --Vector3(0,200,0)
+
+	-- frenquency for short
+	self.containerTrans = self.container.transform
+	-- 设置container初始位置
+	self.containerPos = self.containerTrans.localPosition
+	-- 设置container 区域
+	self.containerRegion = self.cpanel.baseClipRegion
+	-- 设置container 点击区域
+	self.containerBoxSize = self.boxCollider.size
+	-- 可视区域大小
+	self.visibleRect = self.panel.baseClipRegion
+	-- container偏移量
+	self.offset = {x=0,y=0}
+	-- container底部偏移量
+	self.bottomOffset = Vector2(0,0)
+	-- cell 个数
+	self.cellNum = 0
+	-- cells 对象池
+	self.cells = {}
+	self.visibleCells = {}
+	self.exPools = {}
+
+	self.cellWidth = 100
+	self.cellHeigth= 50
+
+	-- 对外接口
+	-- self.eventMap = {
+	-- 	-- 设置偏移
+	-- 	function setTableOffset( offset )
+	-- 		self:SetTableOffset(offset)
+	-- 	end,
+	-- 	-- 设置Container size
+	-- 	function setTableContainerSize( size )
+	-- 		self:SetTableContainerSize(size)
+	-- 	end,
+	-- 	-- 设置偏移
+	-- 	function setTableCellNum( cellNum )
+	-- 		self:SetTableCellNum(cellNum)
+	-- 	end,
+	-- }
+	
+	self:initTable(50,Vector2(300,50))
+	self:SetTopWhenInitDone()
+end
+local codeIndx=0
+function class:DoSmt( )
+	print "do something!"
+	codeIndx=codeIndx+1
+	print ("new code:" .. codeIndx .. os.date())
+	self:fillTable()
+	-- self:SetBottomWhenInitDone()
+	print("self.offset..." .. self.offset.y)
+	local topIndex,bottomIndex = self:getIndexOfOffset()
+	print("============ from: " .. bottomIndex .. " to: " .. topIndex .. "==========")
+	print("self.cells num:" .. #self.cells)
+	print("self.exPools num:" .. #self.exPools)
+	local count = 0
+	for i,cell in pairs(self.visibleCells) do
+		count = count+1
+		-- print("visible cellindex" .. cell.index)
+	end
+	print("self.visibleCells num:" .. count)
+	print("self.newCellIndex is : " .. (self.newCellIndex or " none"))
+	print("=================================")
+	local cellIndexs = {}
+	for i,cell in ipairs(self.cells) do
+		if cellIndexs[cell.index] then
+			cellIndexs[cell.index] = cellIndexs[cell.index] + 1
+			print ("index " .. cell.index .. " is " .. cellIndexs[cell.index] .. "times" )
+		else
+			cellIndexs[cell.index] = 1
+		end
+	end
+	-- self:clear()
+end
+
+-- 设置初始化参数
+function class:initTable( cellNum,size)
+	self:SetTableCellSize(size)
+	self:SetTableCellNum(cellNum)
+	self:autoSetting()
+	
+end
+
+-- 生成cell gameObject
+function class:createCell( )
+	local frame = FindChildInTransform("Cell", self.transform).gameObject
+	local go  = CreateUIGo(frame)
+	NGUITools.SetActive(go, true)
+	local cell = GetLuaTable(go)
+	return cell
+end
+
+function class:findCellInExPool( )
+	local cell = self.exPools[#self.exPools]
+	if not cell then
+		cell = self:createCell()
+		self.cells[#self.cells+1] = cell
+	else
+		table.remove(self.exPools,#self.exPools)
+	end
+	NGUITools.SetActive(cell.gameObject, true)
+	return cell
+end
+
+function class:pushInExPool(cell)
+	self.exPools[#self.exPools] = cell
+	-- NGUITools.SetActive(cell.gameObject, false)
+end
+
+--[[
+填充表格 拿到当前应该显示的列表索引 比如 0~9 依次填充对象，如果没有则创建
+--]]
+function class:fillTable(refresh)
+	local topIndex,bottomIndex = self:getIndexOfOffset()
+	if topIndex > self.cellNum or bottomIndex < 0 then return end
+	self.visibleCells = {}
+	for i=#self.cells,1,-1 do
+		local cell = self.cells[i]
+		if cell.index > topIndex or cell.index < (bottomIndex) then
+			self:pushInExPool(cell)
+			-- NGUITools.SetActive(cell.gameObject, false)
+			self.visibleCells["" .. cell.index] = nil
+		else
+			self.visibleCells["" .. cell.index] = cell
+			-- print("remove cell " .. cell.index)
+		end
+	end
+	for i=bottomIndex,topIndex do
+		self:fillCell(i,refresh)
+	end
+end
+
+function class:fillCell( index,refresh )
+	if self.visibleCells["" .. index] and not refresh then return end
+	local cell = refresh and self.visibleCells["" .. index] or self:findCellInExPool()
+	cell.index = index
+	self.visibleCells["" .. index] = cell
+	-- print ("fillCell .//////" .. index)
+	cell.transform.parent = self.container.transform
+	local cellPosY = (index-self.cellNum*0.5+0.5)*self.cellHeigth
+	cell.transform.localPosition = Vector3(0,cellPosY,0)
+	cell.transform.localScale = Vector3.one
+	-- cell.transform.localRotation = Vector3(0,0,0)
+	local isDetailCell = self.newCellIndex and self.newCellIndex == index or nil
+	local isAbove = self.newCellIndex and self.newCellIndex <= index
+	cell.touchIndex = isAbove and index-1 or index
+	if cell.grids and #cell.grids > 0 then
+		for i,v in ipairs(cell.grids) do
+			NGUITools.SetActive(v.gameObject,not isDetailCell)
+			v:setNum(isAbove and index-1 or index)
+			v.cellIdx = isAbove and index-1 or index
+		end
+	else
+		self:initGrids(cell,{1,2,3,4,5},isAbove and index-1 or index)
+	end
+end
+
+function class:insertCell( index )
+	self.cellNum = self.cellNum+1
+	self.newCellIndex = index
+	local num,width,height = self.cellNum,self.cellWidth,self.cellHeigth
+	-- self:clear()
+	self:initTable(num,Vector2(width,height))
+	self:fillTable(true)
+end
+
+function class:deleteCell( index )
+	self.cellNum = self.cellNum-1
+	self.newCellIndex = nil
+	local num,width,height = self.cellNum,self.cellWidth,self.cellHeigth
+	-- self:clear()
+	self:initTable(num,Vector2(width,height))
+	self:fillTable(true)
+end
+
+function class:forceReflash( )
+	
+end
+
+function class:SetTableDelegate( eventType,func )
+	-- body
+end
+
+function class:SetTableOffset( offset )
+	self.panel.transform.localPosition = Vector3(0,offset,0)
+	self.panel.clipOffset = Vector3(0,-offset,0)
+end
+
+function class:autoSetting( )
+	self:autoResizeContainer()
+end
+
+function class:autoResizeContainer( )
+	local height = math.max(self.visibleRect.w,self.cellHeigth*self.cellNum)
+	self:SetTableContainerSize(Vector2(self.cellWidth,height))
+end
+
+function class:SetTableContainerSize( size )
+	self.cpanel.baseClipRegion = Vector4(0,0,size.x,size.y)
+	self.boxCollider.size = Vector2(size.x,size.y)
+end
+
+-- 设置table cell个数
+function class:SetTableCellNum(cellNum)
+	self.cellNum = cellNum
+end
+
+-- 单个cell宽高
+function class:SetTableCellSize( size )
+	self.cellWidth = size.x
+	self.cellHeigth = size.y
+end
+
+-- 设置初始为最高位置
+function class:SetTopWhenInitDone( )
+	self:SetTableOffset(-self:_getBottomOffsetOfCenter())
+	-- self.container.transform.localPosition = Vector3(0,-self:_getBottomOffsetOfCenter(),0)
+end
+
+-- 设置初始为最低位置
+function class:SetBottomWhenInitDone( )
+	self:SetTableOffset(self:_getBottomOffsetOfCenter())
+	-- self.container.transform.localPosition = Vector3(0,self:_getBottomOffsetOfCenter(),0)
+end
+
+-- 获得底部相对中心点的偏移量
+function class:_getBottomOffsetOfCenter( )
+	local offset = 0
+	local visibleH = self.panel.baseClipRegion.w
+	local containerH = self.cpanel.baseClipRegion.w
+	print "begin offset========"
+	print ("size..." .. (containerH-visibleH)/2)
+	print "end   offset========"
+	print ("visibleH:" .. visibleH)
+	print ("containerH:" .. containerH)
+	self._correctOffsetY = math.max((containerH-visibleH)/2,0)
+	return math.max((containerH-visibleH)/2,0)
+end
+
+-- 通过算scrollView的offset 来矫正container的底部偏移
+function class:_getContainerBottomCorrectOffset( )
+	if not self.panel then return end
+	self.offset.y = self.panel.transform.localPosition.y-(self._correctOffsetY or self:_getBottomOffsetOfCenter())
+end
+
+-- 假定从上往下排
+function class:getIndexOfOffset( )
+	local topIndex,bottomIndex = 0,0
+	local visiblePos1 = -self.offset.y 
+	local visiblePos2 = -self.offset.y+self.panel.baseClipRegion.w
+	topIndex = self:convertPosToIndex(visiblePos2)
+	bottomIndex = self:convertPosToIndex(visiblePos1)
+	-- self.topIndex,self.bottomIndex = topIndex,bottomIndex
+	return topIndex,bottomIndex
+end
+
+function class:convertPosToIndex( pos )
+	local index = math.floor(pos/self.cellHeigth)
+	return index
+end
+
+function class:tableCellAtIndex( index )
+	
+end
+
+function class:Update( )
+	-- self.transform.localPosition.y = -300
+	-- print ("ddddd----" .. self.panel.clipOffset.y)
+	self:_getContainerBottomCorrectOffset()
+	self:fillTable()
+end
+
+-- 清除
+function class:clear( )
+	self.cellNum = 0
+	self.cellWidth = 0
+	self.cellHeigth = 0
+	for i,v in ipairs(self.cells) do
+		Object.Destroy(v.gameObject)
+	end
+	self.cells = {}
+	self.exPools = {}
+	self.visibleCells = {}
+	self:autoSetting()
+end
+
+-- 重置刷新 不删除节点和重新创建
+function class:reflash( )
+	-- body
+end
+
+function class:OnScroll( )
+	print "OnScroll----"
+end
+
+-- 额外test gird...
+function class:createGrid( )
+	-- local go = Lua.CreateGoFromRes2("myGrid.prefab", Vector3.zero, Quaternion.identity)
+	local frame = FindChildInTransform("Frame", self.transform).gameObject
+	local go  = CreateUIGo(frame)
+	local panel = GetLuaTable(go)
+	self:addGridClickFunc(panel)
+	return panel
+end
+
+function class:initGrids( cell,cellData,cellIdx )
+	cell.grids = {}
+	for i=1,#cellData do
+		local grid = self:createGrid()
+		if grid then
+			grid.transform.parent = cell.transform
+			grid.transform.localScale = Vector3.one
+			grid.transform.localPosition = Vector3(i*50-150,0,0)
+			print("create cellGrid:=============" .. i)
+			grid.cellIdx = cellIdx
+			grid.cell = cell
+			grid:setNum(cellIdx) --(cellIdx-1)*5+i)
+			table.insert(cell.grids,grid)
+		end
+	end
+end
+
+-- func
+function class:addGridClickFunc(  )
+	
+end
+
+function class:closeDetail( noReposition )
+	if not self.detailCell then return end
+	if not onlyDelete then
+		self:deleteCell(self.detailCell.grid.cellIdx)
+	end
+	self.detailCell.grid.detailCell = nil
+	Object.Destroy(self.detailCell.gameObject)
+	self.detailCell = nil
+	-- if not noReposition then self:tableReposition() end
+end
+
+function class:doShowDetail( detailCell,grid )
+	if not detailCell then return print "no detailCell" end
+	local isAbove = self.newCellIndex and self.newCellIndex <= grid.cellIdx
+	-- print (" ...new ----:" .. (self.newCellIndex or "none.."))
+	-- print("isAbove?" .. (isAbove and "true" or " no!"))
+	-- print ("self.detailCellIdx...grid.cellIdx..." .. (self.detailCellIdx or "none") .. "  :" .. grid.cellIdx )
+	if self.detailCellIdx and self.detailCellIdx == grid.cellIdx then 
+		self:closeDetail()
+		self.detailCellIdx = nil
+		return
+	end
+	if self.detailCell then
+		self:closeDetail(true)
+	end
+	self.detailCell = detailCell--self:insertCell(cellIdx)--
+	self.detailCellIdx = grid.cellIdx
+	-- print("cellIndex-------" .. (grid and grid.cellIdx or "null") .. " ::::: " .. tonumber(grid.num.text))
+	self:insertCell(grid.cellIdx)
+	-- print("cellIndex-------" .. (grid and grid.cellIdx or "null") .. " ##### " .. tonumber(grid.num.text))
+	-- NGUITools.SetActive(detailCell.gameObject,false)
+	-- self:tableReposition()
+end
+
+return class

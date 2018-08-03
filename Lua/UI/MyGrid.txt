@@ -20,7 +20,7 @@ end
 
 function class:OnGridClick(  )
 	local isMyDetail = self.detailCell ~= nil
-	-- self.scrollUI:closeDetail()
+	self.scrollUI:closeDetail()
 	if isMyDetail then
 		print (" gird " .. self.num.text .. "close detail######")
 		return
